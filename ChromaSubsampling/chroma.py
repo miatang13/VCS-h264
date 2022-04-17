@@ -2,16 +2,22 @@
 import cv2
 
 # The function cv2.imread() is used to read an image.
-img_grayscale = cv2.imread('test.jpg',0)
+img = cv2.imread('test.jpg')
+imgYYC = cv2.cvtColor(img, cv2.COLOR_BGR2YCR_CB)
 
-# The function cv2.imshow() is used to display an image in a window.
-cv2.imshow('graycsale image',img_grayscale)
+# We do 2x2 subsampling
+sampRate = 2
+ksize = (2, 2)
 
-# waitKey() waits for a key press to close the window and 0 specifies indefinite loop
-cv2.waitKey(0)
+# Box filter over vertical and horizontal 
+cr = cv2.boxFilter(imgYYC[:,:,1],ddepth=-1,ksize=ksize)
+cb = cv2.boxFilter(imgYYC[:,:,2],ddepth=-1,ksize=ksize)
 
-# cv2.destroyAllWindows() simply destroys all the windows we created.
-cv2.destroyAllWindows()
+# Subsample
+crSamples = cr[::sampRate, ::sampRate]
+cbSamples = cr[::sampRate, ::sampRate]
 
-# The function cv2.imwrite() is used to write an image.
-cv2.imwrite('grayscale.jpg',img_grayscale)
+# Final subsampled
+subsampledImg = [imgYYC[:,:,0], crSamples, cbSamples]
+
+
