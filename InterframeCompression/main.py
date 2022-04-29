@@ -1,12 +1,29 @@
 import numpy as np
 import cv2
 
+
+
+class Macroblock:
+    def _init_(self, mb_type):
+        self.mb_type = mb_type #I, P, B
+
+
+######################################################################
+
+
+
+
+
+
+
+######################################################################
 cap = cv2.VideoCapture('../videos/corgi_short.mp4')
 
 # Define the codec and create VideoWriter object
 # https://docs.opencv.org/4.x/dd/d43/tutorial_py_video_display.html
 fps = 20.0
 fourcc = cv2.VideoWriter_fourcc(*'X264')
+ # change dimension for other videos
 out = cv2.VideoWriter('output.mp4',fourcc, fps, (854,480))
 
 while cap.isOpened():
