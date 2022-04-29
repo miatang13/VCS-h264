@@ -1,17 +1,19 @@
 import numpy as np
 import cv2
 
-
-
 class Macroblock:
-    def _init_(self, mb_type):
+    def _init_(self, mb_type, motion_vector):
         self.mb_type = mb_type #I, P, B
+        self.motion_vector = motion_vector # for P,B blocks we have motion vector 
 
 
 ######################################################################
 
+# For each block in each (P, B) frame, we try to find a similar block in an I frame
+# Then we can save space by encoding that Macroblock with just a motion vector 
 
 
+# BMAs estimate motion on the basis of rectangular blocks and produce one motion vector for each block.
 
 
 
