@@ -3,23 +3,28 @@ import cv2
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import json
+import scipy.signal as sp
+import math
 
 TEST_VIDEO = False
 TEST_IMG = not TEST_VIDEO
 SAVE_FRAMES = False
-
-fig, ax = plt.subplots()
+OUTPUT_COMPRESSION = False
 
 frames = []
 macro_blocks = []
+reference_frames = []
+
+fig, ((ax_orig, ax_template_frame), (ax_template, ax_corr)) = plt.subplots(2, 2,
+                                                                           figsize=(6, 15))
 
 ######################################################################
 
 
 class Frame:
     def __init__(self, frame_type, macro_blocks_idx):
-        self.frame_type = frame_type
-        self.macro_blocks_idx = macro_blocks_idx
+        self.t = frame_type  # I, P, B
+        self.i = macro_blocks_idx  # index into the macro_blocks array
 
 
 class Macroblock:
@@ -30,16 +35,21 @@ class Macroblock:
 
 ######################################################################
 
-block_size = 8
+block_size = 16
 # Split each frame into macroblocks
 
 
 def split_frame_into_mblocks(input_frame):
-    blocks = []
+    num_blocks_hor = math.ceil(vwidth / block_size)
+    num_blocks_vert = math.ceil(vheight / block_size)
+    blocks = np.zeros(
+        (num_blocks_hor, num_blocks_vert, block_size, block_size))
+    print("Block size", blocks.shape)
     # iterate over blocks
-    for start_i in range(0, vwidth, block_size):
-        for start_j in range(0, vheight, block_size):
-            cur_block = np.zeros((block_size, block_size))
+    for block_i in range(0, num_blocks_hor):
+        start_i = block_i * block_size
+        for block_j in range(0, num_blocks_vert):
+            start_j = block_j * block_size
             # (start_i, start_j) is the left upper corner of each block
             for i in range(0, block_size):
                 if (start_i + i >= vwidth):
@@ -48,10 +58,10 @@ def split_frame_into_mblocks(input_frame):
                     if (start_j + j >= vheight):
                         continue
                     # we collect each entry in the block
-                    cur_block[i][j] = input_frame[start_i + i][start_j + j][0]
-            blocks.append(cur_block)
-            ax.add_patch(Rectangle((start_i, start_j), block_size,
-                         block_size,  edgecolor='black', fill=False, lw=0.5))
+                    blocks[block_i][block_j][j][i] = input_frame[start_j + j][start_i + i]
+            # draw out bounding box for each block
+            ax_template_frame.add_patch(Rectangle((start_i, start_j), block_size,
+                                                  block_size,  edgecolor='black', fill=False, lw=0.5))
     print("Finished splitting frame into macro blocks")
     return blocks
 
@@ -59,26 +69,65 @@ def split_frame_into_mblocks(input_frame):
 # Then we can save space by encoding that Macroblock with just a motion vector
 
 
-def match_block():
-    img = imread('https://i.stack.imgur.com/JL2LW.png', pilmode='L')
-    temp = imread('https://i.stack.imgur.com/UIUzJ.png', pilmode='L')
-
+def match_block(img, temp):
+    print(img.shape, "temp shape", temp.shape)
     corr = sp.correlate2d(img - img.mean(),
                           temp - temp.mean(),
                           boundary='symm',
                           mode='full')
+    max_coords = np.where(corr == np.max(corr))
+
+    ax_corr.imshow(corr, cmap='gray')
+    ax_corr.set_title('Cross-correlation')
+    ax_corr.set_axis_off()
+    ax_corr.plot(max_coords[1], max_coords[0], 'c*', markersize=5)
+
+    return [max_coords[1], max_coords[0]]
 
 
-def process_B_frame():
+def process_B_frame(input_frame, frame_num):
+    # Find closest reference frame
+    ref_frame = reference_frames[frames[frame_num -
+                                        frame_num % order_length].i]
+    cur_blocks = split_frame_into_mblocks(input_frame)
+
+    block_i = 15
+    block_j = 5
+    x, y = match_block(ref_frame, cur_blocks[block_i][block_j])
+    block_coord = [block_i * block_size, block_j * block_size]
+    # motion_vector = [x - block_coord[0], y - block_coord[1]]
+    # mb = Macroblock("B", )
+
+    # plot reference frame
+    ax_orig.imshow(ref_frame, cmap='gray')
+    ax_orig.set_title('Original')
+    ax_orig.set_axis_off()
+
+    # plot input frame
+    ax_template_frame.imshow(input_frame, cmap="gray")
+    ax_template_frame.set_title("Full Template Frame")
+    ax_template_frame.set_axis_off()
+    ax_template_frame.add_patch(Rectangle((block_coord[0], block_coord[1]), block_size,
+                                block_size,  edgecolor='red', fill=False, lw=2))
+
+    # plot template (macroblock we are searching for)
+    ax_template.imshow(cur_blocks[block_i][block_j], cmap='gray')
+    ax_template.set_title('Template Block')
+    ax_template.set_axis_off()
+
+    # draw the match
+    ax_orig.plot(x, y, 'ro')
+
     return
 
 
-def process_P_frame():
+def process_P_frame(input_frame, frame_num):
     return
 
 
-def process_I_frame():
-    return
+def process_I_frame(input_frame):
+    reference_frames.append(input_frame)
+    return Frame("I", len(reference_frames) - 1)
 
 # Display order of frames: I, B, P, B, P, B, P
 
@@ -87,19 +136,20 @@ order_length = 7
 
 
 def encode_frame(input_frame, frame_num):
-    blocks = split_frame_into_mblocks(input_frame)
-    macro_blocks.append(blocks)
     frame_num %= order_length
     frame_type = ""
+    encoded_frame = ""
     if (frame_num == 0):
+        encoded_frame = process_I_frame(input_frame)
         frame_type = "I"
     elif frame_num % 2 == 1:
+        encoded_frame = process_B_frame(input_frame, frame_num)
         frame_type = "B"
     else:
+        encoded_frame = process_P_frame(input_frame, frame_num)
         frame_type = "P"
     print("Encode frame of type", frame_type)
-    new_frame = Frame(frame_type, len(macro_blocks)-1)
-    frames.append(new_frame)
+    frames.append(encoded_frame)
     return
 
 
@@ -112,18 +162,20 @@ class NumpyEncoder(json.JSONEncoder):
 
 
 if TEST_IMG:
-    img1 = cv2.imread('../images/corgi-underwater/12.jpg')
-    img2 = cv2.imread('../images/corgi-underwater/20.jpg')
-    vwidth, vheight, channels = img1.shape
-    img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB)
-    plt.imshow(img1)
+    img1 = cv2.imread('../images/corgi-underwater/12.jpg',
+                      cv2.IMREAD_GRAYSCALE)
+    img2 = cv2.imread('../images/corgi-underwater/16.jpg',
+                      cv2.IMREAD_GRAYSCALE)
+    vheight, vwidth = img1.shape
+    print("Num blocks (hor, vert):", vwidth / block_size, vheight / block_size)
     encode_frame(img1, 0)
     encode_frame(img2, 1)
 
-    # Save compressed data of frames
-    json_string = json.dumps([ob.__dict__ for ob in frames])
-    with open("frames.json", "w") as text_file:
-        print(f"{json_string}", file=text_file)
+    if OUTPUT_COMPRESSION:
+        # Save compressed data of frames
+        json_string = json.dumps([ob.__dict__ for ob in frames])
+        with open("frames.json", "w") as text_file:
+            print(f"{json_string}", file=text_file)
 
     if SAVE_FRAMES:
         # Save frames
@@ -133,7 +185,7 @@ if TEST_IMG:
                                cls=NumpyEncoder)
         with open("blocks.json", "w")as text_file:
             print(f"{json_dump}", file=text_file)
-    # plt.show()
+    plt.show()
 
 
 ######################################################################
