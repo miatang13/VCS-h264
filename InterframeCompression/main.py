@@ -35,7 +35,7 @@ class Macroblock:
 
 ######################################################################
 
-block_size = 16
+block_size = 32
 # Split each frame into macroblocks
 
 
@@ -45,22 +45,26 @@ def split_frame_into_mblocks(input_frame):
     blocks = np.zeros(
         (num_blocks_hor, num_blocks_vert, block_size, block_size))
     print("Block size", blocks.shape)
+    print("Input size (y, x)", input_frame.shape)
+    print("Vwidth height", vwidth, vheight)
     # iterate over blocks
-    for block_i in range(0, num_blocks_hor):
-        start_i = block_i * block_size
-        for block_j in range(0, num_blocks_vert):
-            start_j = block_j * block_size
+    for col in range(0, num_blocks_hor):
+        start_col = col * block_size
+        for row in range(0, num_blocks_vert):
+            start_row = row * block_size
             # (start_i, start_j) is the left upper corner of each block
             for i in range(0, block_size):
-                if (start_i + i >= vwidth):
+                if (start_col + i >= vwidth):
                     continue
                 for j in range(0, block_size):
-                    if (start_j + j >= vheight):
+                    if (start_row + j >= vheight):
                         continue
                     # we collect each entry in the block
-                    blocks[block_i][block_j][j][i] = input_frame[start_j + j][start_i + i]
+                    # print("input x, y", start_col + i, start_row + j)
+                    blocks[col][row][j][i] = input_frame[start_row +
+                                                         j][start_col + i]
             # draw out bounding box for each block
-            ax_template_frame.add_patch(Rectangle((start_i, start_j), block_size,
+            ax_template_frame.add_patch(Rectangle((start_col, start_row), block_size,
                                                   block_size,  edgecolor='black', fill=False, lw=0.5))
     print("Finished splitting frame into macro blocks")
     return blocks
@@ -91,8 +95,8 @@ def process_B_frame(input_frame, frame_num):
                                         frame_num % order_length].i]
     cur_blocks = split_frame_into_mblocks(input_frame)
 
-    block_i = 15
-    block_j = 5
+    block_i = 1
+    block_j = 0
     x, y = match_block(ref_frame, cur_blocks[block_i][block_j])
     block_coord = [block_i * block_size, block_j * block_size]
     # motion_vector = [x - block_coord[0], y - block_coord[1]]
@@ -117,6 +121,7 @@ def process_B_frame(input_frame, frame_num):
 
     # draw the match
     ax_orig.plot(x, y, 'ro')
+    print("Finished processing B frame")
 
     return
 
@@ -148,7 +153,7 @@ def encode_frame(input_frame, frame_num):
     else:
         encoded_frame = process_P_frame(input_frame, frame_num)
         frame_type = "P"
-    print("Encode frame of type", frame_type)
+    print("Encoded frame of type", frame_type)
     frames.append(encoded_frame)
     return
 
