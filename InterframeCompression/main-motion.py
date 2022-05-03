@@ -35,28 +35,28 @@ class Macroblock:
 
 ######################################################################
 
-block_size = 32
+BLOCK_SIZE = 16 # 16x16 is the official MB size in book
 # Split each frame into macroblocks
 
 
 def split_frame_into_mblocks(input_frame):
-    num_blocks_hor = math.ceil(vwidth / block_size)
-    num_blocks_vert = math.ceil(vheight / block_size)
+    num_blocks_hor = math.ceil(vwidth / BLOCK_SIZE)
+    num_blocks_vert = math.ceil(vheight / BLOCK_SIZE)
     blocks = np.zeros(
-        (num_blocks_hor, num_blocks_vert, block_size, block_size))
+        (num_blocks_hor, num_blocks_vert, BLOCK_SIZE, BLOCK_SIZE))
     print("Block size", blocks.shape)
     print("Input size (y, x)", input_frame.shape)
     print("Vwidth height", vwidth, vheight)
     # iterate over blocks
     for col in range(0, num_blocks_hor):
-        start_col = col * block_size
+        start_col = col * BLOCK_SIZE
         for row in range(0, num_blocks_vert):
-            start_row = row * block_size
+            start_row = row * BLOCK_SIZE
             # (start_i, start_j) is the left upper corner of each block
-            for i in range(0, block_size):
+            for i in range(0, BLOCK_SIZE):
                 if (start_col + i >= vwidth):
                     continue
-                for j in range(0, block_size):
+                for j in range(0, BLOCK_SIZE):
                     if (start_row + j >= vheight):
                         continue
                     # we collect each entry in the block
@@ -64,8 +64,8 @@ def split_frame_into_mblocks(input_frame):
                     blocks[col][row][j][i] = input_frame[start_row +
                                                          j][start_col + i]
             # draw out bounding box for each block
-            ax_template_frame.add_patch(Rectangle((start_col, start_row), block_size,
-                                                  block_size,  edgecolor='black', fill=False, lw=0.5))
+            ax_template_frame.add_patch(Rectangle((start_col, start_row), BLOCK_SIZE,
+                                                  BLOCK_SIZE,  edgecolor='black', fill=False, lw=0.5))
     print("Finished splitting frame into macro blocks")
     return blocks
 
@@ -98,7 +98,7 @@ def process_B_frame(input_frame, frame_num):
     block_i = 1
     block_j = 0
     x, y = match_block(ref_frame, cur_blocks[block_i][block_j])
-    block_coord = [block_i * block_size, block_j * block_size]
+    block_coord = [block_i * BLOCK_SIZE, block_j * BLOCK_SIZE]
     # motion_vector = [x - block_coord[0], y - block_coord[1]]
     # mb = Macroblock("B", )
 
@@ -111,8 +111,8 @@ def process_B_frame(input_frame, frame_num):
     ax_template_frame.imshow(input_frame, cmap="gray")
     ax_template_frame.set_title("Full Template Frame")
     ax_template_frame.set_axis_off()
-    ax_template_frame.add_patch(Rectangle((block_coord[0], block_coord[1]), block_size,
-                                block_size,  edgecolor='red', fill=False, lw=2))
+    ax_template_frame.add_patch(Rectangle((block_coord[0], block_coord[1]), BLOCK_SIZE,
+                                BLOCK_SIZE,  edgecolor='red', fill=False, lw=2))
 
     # plot template (macroblock we are searching for)
     ax_template.imshow(cur_blocks[block_i][block_j], cmap='gray')
@@ -172,7 +172,7 @@ if TEST_IMG:
     img2 = cv2.imread('../images/corgi-underwater/16.jpg',
                       cv2.IMREAD_GRAYSCALE)
     vheight, vwidth = img1.shape
-    print("Num blocks (hor, vert):", vwidth / block_size, vheight / block_size)
+    print("Num blocks (hor, vert):", vwidth / BLOCK_SIZE, vheight / BLOCK_SIZE)
     encode_frame(img1, 0)
     encode_frame(img2, 1)
 

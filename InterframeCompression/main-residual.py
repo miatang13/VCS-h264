@@ -10,7 +10,7 @@ SAVE_FRAMES = False
 OUTPUT_COMPRESSION = False
 
 residual_frames = []
-reference_frames = []
+reference_frames = [] # "Coded Picture Buffer" in the book 
 # We keep the last full frame at all times so we can get the delta easily
 last_full_frame = cv2.imread('../images/corgi-underwater/11.jpg',
                              cv2.IMREAD_GRAYSCALE)  # Used when encoding
