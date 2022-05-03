@@ -50,6 +50,8 @@ def find_match(img, block):
     # plot match coordinate
     ax_ref.add_patch(Rectangle((best_coord[1], best_coord[0]), BLOCK_SIZE,
                                BLOCK_SIZE,  edgecolor='red', fill=False, lw=2))
+    ax_ref.text(best_coord[1] + 10, best_coord[0] +
+                25, "BEST MATCH: (" + str(best_coord[1]) + "," + str(best_coord[0]) + ")", fontsize=8)
 
     return best_coord
 
@@ -58,22 +60,9 @@ def split_frame_into_mblocks(input_frame, highlightBlock):
     blocks = []
 
     # iterate over blocks
-    # for col in range(0, num_blocks_hor):
-    #     start_col = col * BLOCK_SIZE
-    #     for row in range(0, num_blocks_vert):
-    #         start_row = row * BLOCK_SIZE
-    #         # (start_i, start_j) is the left upper corner of each block
-    #         for i in range(0, BLOCK_SIZE):
-    #             if (start_col + i >= vwidth):
-    #                 continue
-    #             for j in range(0, BLOCK_SIZE):
-    #                 if (start_row + j >= vheight):
-    #                     continue
-    #                 # we collect each entry in the block
-    #                 # print("input x, y", start_col + i, start_row + j)
-    #                 blocks[col][row][j][i] = input_frame[start_row +
-    #                                                      j][start_col + i]
     ax_input.imshow(input_frame, cmap="gray")
+    ax_input.set_title("Input Frame")
+    ax_block.set_axis_off()
     block_idx = 0
     for i in range(0, imshape[0], BLOCK_SIZE):
         if (i+BLOCK_SIZE > imshape[0]):
@@ -91,13 +80,15 @@ def split_frame_into_mblocks(input_frame, highlightBlock):
             if (block_idx == highlightBlock):
                 ax_input.add_patch(Rectangle((j, i), BLOCK_SIZE,
                                              BLOCK_SIZE,  edgecolor='red', fill=False, lw=3))
+                ax_input.text(j + 10, i + 25,  "SEARCH BLOCK: (" +
+                              str(j) + "," + str(i) + ")",  fontsize=8)
             block_idx += 1
 
     print("Finished splitting frame into macro blocks")
     return blocks
 
 
-TEST_BLOCK = 10
+TEST_BLOCK = 380
 blocks = split_frame_into_mblocks(img2, highlightBlock=TEST_BLOCK)
 print("Blocks", len(blocks))
 find_match(img1, blocks[TEST_BLOCK])
