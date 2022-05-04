@@ -5,10 +5,16 @@ from matplotlib.patches import Rectangle
 import math
 
 DRAW_MBLOCK_INDEX = False
+DRAW_SEARCH_WINDOW_BLOCKS = True
 
+# Tweak params
 BLOCK_SIZE = 16
-img1 = cv2.imread('../../images/corgi-underwater/12.jpg')
-img2 = cv2.imread('../../images/corgi-underwater/16.jpg')
+SEARCH_WINDOW_SIZE = 3
+FONT_SIZE = 5
+
+# We just grab two images for testing
+img1 = cv2.imread('../../images/oscar-cat/16.jpg')
+img2 = cv2.imread('../../images/oscar-cat/17.jpg')
 img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB)
 img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB)
 vheight, vwidth, channels = img1.shape
@@ -31,18 +37,13 @@ def find_match(img, block, block_coord):
     best_block = np.zeros((BLOCK_SIZE, BLOCK_SIZE))
 
     # Loop over all blocks in reference frame within the search window
-    SEARCH_WINDOW_SIZE = 5
-    i_min = max(block_coord[0] - BLOCK_SIZE * SEARCH_WINDOW_SIZE, 0)
-    j_min = max(block_coord[1] - BLOCK_SIZE * SEARCH_WINDOW_SIZE, 0)
-    i_max = min(block_coord[0] + BLOCK_SIZE * SEARCH_WINDOW_SIZE, imshape[0])
-    j_max = min(block_coord[1] + BLOCK_SIZE * SEARCH_WINDOW_SIZE, imshape[1])
-
-    # We round it to have clean blocks
-    i_range = round((i_max - i_min) / BLOCK_SIZE) * BLOCK_SIZE
-    i_max = i_min + i_range
-
-    j_range = round((j_max - j_min) / BLOCK_SIZE) * BLOCK_SIZE
-    j_max = j_min + j_range
+    dist_from_block = BLOCK_SIZE * SEARCH_WINDOW_SIZE
+    # Mins
+    i_min = max(block_coord[1] - dist_from_block, 0)
+    j_min = max(block_coord[0] - dist_from_block, 0)
+    # Max
+    i_max = min(block_coord[1] + dist_from_block, imshape[0])
+    j_max = min(block_coord[0] + dist_from_block, imshape[1])
 
     print("Search window", i_min, i_max, ",", j_min, j_max)
 
@@ -56,6 +57,9 @@ def find_match(img, block, block_coord):
             if (j+BLOCK_SIZE > imshape[1]):
                 continue
 
+            if (DRAW_SEARCH_WINDOW_BLOCKS):
+                ax_ref.add_patch(Rectangle((j, i), BLOCK_SIZE,
+                                           BLOCK_SIZE,  edgecolor='gray', fill=False, lw=0.5))
             # Valid block within image bound
             ref_block = image[i:i+BLOCK_SIZE, j:j+BLOCK_SIZE]
             # print("Ref block size", ref_block.shape)
@@ -79,14 +83,22 @@ def find_match(img, block, block_coord):
     ax_block.set_title('Block Searching For Match')
 
     # plot search window
-    ax_ref.add_patch(Rectangle((j_min, i_min), j_range, i_range,
+    ax_ref.add_patch(Rectangle((j_min, i_min), j_max - j_min, i_max - i_min,
                      edgecolor='orange', fill=False, lw=2))
+    ax_ref.text(j_max - BLOCK_SIZE, i_max +
+                BLOCK_SIZE, "SEARCH WINDOW", fontsize=FONT_SIZE, color="black")
+
+    # plot search window center
+    ax_ref.add_patch(Rectangle((block_coord[0], block_coord[1]), BLOCK_SIZE, BLOCK_SIZE,
+                               edgecolor='yellow', fill=False, lw=2))
+    ax_ref.text(block_coord[0] - BLOCK_SIZE, block_coord[1] +
+                BLOCK_SIZE * 2, "CENTER", fontsize=FONT_SIZE, color="white")
 
     # plot match coordinate
-    ax_ref.add_patch(Rectangle((best_coord[1], best_coord[0]), BLOCK_SIZE,
+    ax_ref.add_patch(Rectangle((best_coord[0], best_coord[1]), BLOCK_SIZE,
                                BLOCK_SIZE,  edgecolor='red', fill=False, lw=2))
-    ax_ref.text(best_coord[1] + 10, best_coord[0] +
-                25, "BEST MATCH: (" + str(best_coord[1]) + "," + str(best_coord[0]) + ")", fontsize=8)
+    ax_ref.text(best_coord[0] + BLOCK_SIZE, best_coord[1] +
+                BLOCK_SIZE * 2, "BEST MATCH: (" + str(best_coord[0]) + "," + str(best_coord[1]) + ")", fontsize=FONT_SIZE, color="white")
 
     # plot match block
     ax_match_block.imshow(best_block)
@@ -114,7 +126,8 @@ def split_frame_into_mblocks(input_frame, highlightBlock):
             if DRAW_MBLOCK_INDEX:
                 ax_input.add_patch(Rectangle((j, i), BLOCK_SIZE,
                                              BLOCK_SIZE,  edgecolor='black', fill=False, lw=0.5))
-                ax_input.text(j, i, block_idx, fontsize=3)
+                ax_input.text(j, i + BLOCK_SIZE, block_idx,
+                              fontsize=3, color="white")
 
             # we keep all blocks
             blocks.append(block)
@@ -122,9 +135,9 @@ def split_frame_into_mblocks(input_frame, highlightBlock):
             # draw the block we are searching for
             if (block_idx == highlightBlock):
                 ax_input.add_patch(Rectangle((j, i), BLOCK_SIZE,
-                                             BLOCK_SIZE,  edgecolor='red', fill=False, lw=2))
-                ax_input.text(j + 10, i + 25,  "SEARCH BLOCK: (" +
-                              str(j) + "," + str(i) + ")",  fontsize=8)
+                                             BLOCK_SIZE,  edgecolor='yellow', fill=False, lw=2))
+                ax_input.text(j + 10, i + BLOCK_SIZE * 2,  "SEARCH BLOCK: (" +
+                              str(j) + "," + str(i) + ")",  fontsize=FONT_SIZE, color="white")
                 highlightCoord = [j, i]
 
             # we use this index to decide on which block to highlight
@@ -143,13 +156,13 @@ def get_motion_vector(match_coord, search_coord):
     return motion_vector
 
 
-TEST_BLOCK_IDX = 120
+TEST_BLOCK_IDX = 945
 [blocks, searchCoord] = split_frame_into_mblocks(img2, TEST_BLOCK_IDX)
 print("Num Blocks", len(blocks))
 [best_coord, best_block] = find_match(
     img1, blocks[TEST_BLOCK_IDX], searchCoord)
 motion_vector = get_motion_vector(best_coord, searchCoord)
-ax_input.arrow(searchCoord[0], searchCoord[1] + 8,
-               motion_vector[0], motion_vector[1], head_width=10)
+ax_input.arrow(searchCoord[0] + BLOCK_SIZE/2, searchCoord[1] + BLOCK_SIZE/2,
+               motion_vector[0], motion_vector[1], head_width=10, edgecolor="yellow")
 
 plt.show()
