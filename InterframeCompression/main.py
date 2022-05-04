@@ -43,11 +43,11 @@ elif TEST_SIMPLE:
 refImage = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB)
 inputImage = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB)
 overlayImg = cv2.cvtColor(overlayImg, cv2.COLOR_BGR2RGB)
-vidshape = [600,  600]
+vidshape = [480,  854]
 channels = 3
 
 # We want smaller blocks for smaller images to avoid blocky reconstruction
-BLOCK_SIZE = 16  # 4 if vidshape[0] * vidshape[1] <= 150000 else 16
+BLOCK_SIZE = 4  # 4 if vidshape[0] * vidshape[1] <= 150000 else 16
 print("Block size: ", BLOCK_SIZE)
 SEARCH_WINDOW_SIZE = 2 * BLOCK_SIZE
 
@@ -222,8 +222,10 @@ def process_B_frame(input, frame_num):\
 
 
 def process_P_frame(input, frame_num):
+    # TODO: Debug ref idx
     ref_idx = math.floor(frame_num / ENCODING_PATTERN_LENGTH)
     ref = reference_frames[ref_idx]
+    print("frame num", frame_num)
     # Pipeline
     # 1. Get motion vectors for each block
     [motion_vecs, coords] = process_motion_prediction(input, ref)
@@ -239,10 +241,9 @@ def process_P_frame(input, frame_num):
 
 
 def encode_frame(input_frame, frame_num):
-    frame_num %= ENCODING_PATTERN_LENGTH
     frame_type = ""
     encoded_frame = ""
-    if (frame_num == 0):
+    if (frame_num % ENCODING_PATTERN_LENGTH == 0):
         encoded_frame = process_I_frame(input_frame, frame_num)
         frame_type = "I"
     else:
@@ -307,7 +308,7 @@ def reconstruct_video():
     fps = 20.0
     fourcc = cv2.VideoWriter_fourcc(*'X264')
     out = cv2.VideoWriter('output.mp4', fourcc, fps,
-                          (vidshape[0],  vidshape[1]))
+                          (vidshape[1],  vidshape[0]))
     print("Set up video writer")
 
     # Iteration variables
@@ -325,7 +326,6 @@ def reconstruct_video():
             # print("Decoding prediction frame type P")
             # we have reference frame, we simply write it
             frame = reconstruct_P_frame(cur_frame)
-            print(frame.shape)
             out.write(frame)
         cur_frame_idx += 1
     print("Finished writing frames of length", cur_frame_idx + 1)
@@ -341,7 +341,7 @@ if TEST_IMAGE:
 
 ######################################################################
 if TEST_VIDEO:
-    cap = cv2.VideoCapture('../videos/oscar_cat_crop.mp4')
+    cap = cv2.VideoCapture('../videos/corgi_short.mp4')
 
     # Define the codec and create VideoWriter object
     # https://docs.opencv.org/4.x/dd/d43/tutorial_py_video_display.html
