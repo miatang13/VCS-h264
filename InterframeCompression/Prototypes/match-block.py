@@ -11,7 +11,7 @@ DRAW_SEARCH_BLOCK = False
 BLOCK_SIZE = 16
 FONT_SIZE = 5
 LINE_WIDTH = 0.5
-SIMILARITY_THRESHOLD = 255 * .1
+SIMILARITY_THRESHOLD = 1000
 
 # We just grab two images for testing
 img1 = cv2.imread('../../images/sequences/minor-jump/0.png')
@@ -26,13 +26,11 @@ imshape = img1.shape
 # If the image is too small, we want to cap the search window by some factor of the image dimension
 SEARCH_WINDOW_SIZE = round(min(2 * BLOCK_SIZE, min(vwidth, vheight) / 5))
 
-block_coords = []
-
-fig, ((ax_ref_full, ax_overlay), (ax_ref, ax_input), (ax_match_block, ax_block)) = plt.subplots(
-    3, 2, figsize=(10.5, 10.5))
+fig, ((ax_ref, ax_input, ax_overlay), (ax_replaced, ax_residual, ax_reconstructed)) = plt.subplots(
+    2, 3, figsize=(14, 7))
 
 ax_overlay.imshow(overlayImg)
-ax_overlay.set_title("Overlay frames")
+ax_overlay.set_title("Overlay Frames (ref is opaque)")
 
 
 # MOTION ESTIMATION
@@ -48,9 +46,7 @@ def find_match(img, block, block_coord):
     # For plots
     # plot reference frame
     ax_ref.imshow(img)
-    ax_ref.set_title('Reference Frame annot. w/ nonstatic blocks')
-    ax_ref_full.imshow(img)
-    ax_ref_full.set_title('Reference Frame')
+    ax_ref.set_title('Reference Frame (annot. w/ nonstatic blocks)')
 
     # OPTIMIZE SEARCH
     # return input location if the same location on reference frame is very similar since motion prediction is
@@ -60,8 +56,7 @@ def find_match(img, block, block_coord):
                                   BLOCK_SIZE, block_coord[0]:block_coord[0]+BLOCK_SIZE]
     # np.sum(np.abs(block_at_input_location - block))
     diff = np.sum(np.abs(cv2.subtract(block_at_input_location, block)))
-    print("diff", diff)
-    if (diff <= 1000):
+    if (diff <= SIMILARITY_THRESHOLD):
         print("Input position is good. Block is static. ")
         best_coord = block_coord
         best_block = block_at_input_location
@@ -108,38 +103,17 @@ def find_match(img, block, block_coord):
                     best_match = diff
                     best_coord = [j, i]
                     best_block = ref_block
-        # print("Best coord", best_coord[1], best_coord[0])
-        # plot search window
-        # ax_ref.add_patch(Rectangle((j_min, i_min), j_max - j_min, i_max - i_min,
-        #                            edgecolor='orange', fill=False, lw=LINE_WIDTH))
-        # ax_ref.text(j_max - BLOCK_SIZE, i_max +
-        #             BLOCK_SIZE, "SEARCH WINDOW", fontsize=FONT_SIZE, color="black", backgroundcolor="white")
 
         # plot search window center
         ax_ref.add_patch(Rectangle((block_coord[0], block_coord[1]), BLOCK_SIZE, BLOCK_SIZE,
-                                   edgecolor='yellow', fill=False, lw=LINE_WIDTH))
-        # ax_ref.text(block_coord[0] - BLOCK_SIZE, block_coord[1] +
-        #             BLOCK_SIZE * 2, "CENTER", fontsize=FONT_SIZE, color="white")
-        # plot match coordinate
-        # ax_ref.add_patch(Rectangle((best_coord[0], best_coord[1]), BLOCK_SIZE,
-        #                            BLOCK_SIZE,  edgecolor='red', fill=False, lw=LINE_WIDTH * 2))
-
-    # plot template (macroblock we are searching for)
-    ax_block.imshow(block)
-    ax_block.set_title('Block Searching For Match')
-
-    # ax_ref.text(best_coord[0] + BLOCK_SIZE, best_coord[1] +
-    #             BLOCK_SIZE * 4, "BEST MATCH", fontsize=FONT_SIZE, color="black", backgroundcolor="white")
-
-    # plot match block
-    ax_match_block.imshow(best_block)
-    ax_match_block.set_title("Best Match Block in Ref Frame")
+                                   edgecolor='yellow', fill=False, lw=LINE_WIDTH * 2))
     return [best_coord, best_block]
 
 
-def split_frame_into_mblocks(input_frame, highlightBlock):
+def split_frame_into_mblocks(input_frame):
     global BLOCK_SIZE
     blocks = []
+    block_coords = []
 
     # iterate over blocks
     ax_input.imshow(input_frame)
@@ -163,20 +137,12 @@ def split_frame_into_mblocks(input_frame, highlightBlock):
             # we keep all blocks
             blocks.append(block)
 
-            # draw the block we are searching for
-            if (DRAW_SEARCH_BLOCK and block_idx == highlightBlock):
-                ax_input.add_patch(Rectangle((j, i), BLOCK_SIZE,
-                                             BLOCK_SIZE,  edgecolor='yellow', fill=False, lw=LINE_WIDTH))
-                ax_input.text(j + BLOCK_SIZE*2, i + BLOCK_SIZE * 2,  "SEARCH BLOCK",
-                              fontsize=FONT_SIZE, color="black", backgroundcolor="white")
-                highlightCoord = [j, i]
-
-            # we use this index to decide on which block to highlight
+            # we keep track of coordinates for later
             block_idx += 1
             block_coords.append([j, i])
 
     print("Finished splitting frame into macro blocks")
-    return [blocks, None]
+    return [blocks, block_coords]
 
 
 def get_motion_vector(match_coord, search_coord):
@@ -188,20 +154,61 @@ def get_motion_vector(match_coord, search_coord):
     return motion_vector
 
 
-TEST_BLOCK_IDX = 298
-[blocks, _] = split_frame_into_mblocks(inputImage, TEST_BLOCK_IDX)
-print("Num Blocks", len(blocks))
-for block_i in range(len(blocks)):
-    searchCoord = block_coords[block_i]
-    [best_coord, best_block] = find_match(
-        refImage, blocks[block_i], searchCoord)
-    motion_vector = get_motion_vector(best_coord, searchCoord)
-    if (not (motion_vector[0] == 0 and motion_vector[1] == 0)):
-        # Only plot vectors when the block is not static
-        ax_overlay.arrow(searchCoord[0] + BLOCK_SIZE/2, searchCoord[1] + BLOCK_SIZE/2,
-                         motion_vector[0], motion_vector[1], head_width=5, edgecolor="yellow")
-    print("Block index:", block_i)
+def process_motion_prediction(input_frame, ref_frame):
+    # Break input frame into 16x16 blocks
+    [blocks, block_coords] = split_frame_into_mblocks(input_frame)
+    print("Num Blocks", len(blocks))
 
+    # For each block, we get its motoin vector to ref frame (if it is not static)
+    motion_vectors = []
+    for block_i in range(len(blocks)):
+        searchCoord = block_coords[block_i]
+        # print(searchCoord)
+
+        # We find the matching block in reference frame
+        [best_coord, best_block] = find_match(
+            ref_frame, blocks[block_i], searchCoord)
+        motion_vector = get_motion_vector(best_coord, searchCoord)
+
+        motion_vectors.append(motion_vector)
+
+        # Only care about vectors when the block is not static
+        if (not (motion_vector[0] == 0 and motion_vector[1] == 0)):
+            ax_overlay.arrow(searchCoord[0] + BLOCK_SIZE/2, searchCoord[1] + BLOCK_SIZE/2,
+                             motion_vector[0], motion_vector[1], head_width=5, edgecolor="yellow")
+        print("Finished processing block index:", block_i)
+
+    return [motion_vectors, block_coords]
+
+
+def reconstruct_from_motion_vectors(motion_vectors, ref_frame, block_coords):
+    # We reconstruct an image solely from the motion vectors and the reference frame
+    # which we want to compare with the actual input frame to get the residual frame
+    reconstruct_img = np.zeros(
+        (imshape[1], imshape[0], channels), ref_frame.dtype)
+
+    for block_i in range(len(block_coords)):
+        [j, i] = block_coords[block_i]
+        v = motion_vectors[block_i]
+        if (v[0] == 0 and v[1] == 0):
+            # We find static blocks and directly sample from the reference frame
+            reconstruct_img[i:i+BLOCK_SIZE, j:j +
+                            BLOCK_SIZE] = ref_frame[i:i+BLOCK_SIZE, j:j+BLOCK_SIZE]
+        else:
+            # For nonstatic blocks, we find the motion predicted block
+            i_0 = i + v[1]
+            j_0 = j + v[0]
+            predicted_block = ref_frame[i_0:i_0+BLOCK_SIZE, j_0:j_0+BLOCK_SIZE]
+            reconstruct_img[i:i+BLOCK_SIZE, j:j + BLOCK_SIZE] = predicted_block
+
+    ax_replaced.imshow(reconstruct_img)
+    ax_replaced.set_title("Reconstructed Image")
+
+
+[motion_vecs, coords] = process_motion_prediction(
+    input_frame=inputImage, ref_frame=refImage)
+reconstruct_from_motion_vectors(
+    motion_vectors=motion_vecs, ref_frame=refImage, block_coords=coords)
 
 plt.show()
 
