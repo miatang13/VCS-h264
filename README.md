@@ -1,1 +1,1 @@
-A simple h.274 video encoder.
+A simple h.264 video encoder.
