@@ -7,8 +7,11 @@ DRAW_MBLOCK_INDEX = False
 DRAW_SEARCH_WINDOW_BLOCKS = False
 DRAW_SEARCH_BLOCK = False
 
+# Different inputs
+TEST_CORGI = False
+TEST_SIMPLE = True
+
 # Tweak params
-BLOCK_SIZE = 16
 FONT_SIZE = 5
 PLOT_FONT_SIZE = 12
 LINE_WIDTH = 0.5
@@ -18,21 +21,33 @@ SIMILARITY_THRESHOLD = 2000
 img1 = cv2.imread('../../images/oscar-cat/5.jpg')
 img2 = cv2.imread('../../images/oscar-cat/6.jpg')
 overlayImg = cv2.imread('../../images/oscar-cat/5+6.jpg')
+
+if TEST_CORGI:
+    img1 = cv2.imread("../../images/corgi-underwater/15.jpg")
+    img2 = cv2.imread("../../images/corgi-underwater/16.jpg")
+    overlayImg = cv2.imread("../../images/corgi-underwater/16.jpg")
+elif TEST_SIMPLE:
+    img1 = cv2.imread("../../images/sequences/minor-jump/0.png")
+    img2 = cv2.imread("../../images/sequences/minor-jump/1.png")
+    overlayImg = cv2.imread("../../images/sequences/minor-jump/overlay.png")
+
 refImage = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB)
 inputImage = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB)
 overlayImg = cv2.cvtColor(overlayImg, cv2.COLOR_BGR2RGB)
 vheight, vwidth, channels = refImage.shape
-imshape = img1.shape
+imshape = inputImage.shape
 
-# If the image is too small, we want to cap the search window by some factor of the image dimension
-SEARCH_WINDOW_SIZE = round(min(2 * BLOCK_SIZE, min(vwidth, vheight) / 5))
+# We want smaller blocks for smaller images to avoid blocky reconstruction
+BLOCK_SIZE = 16  # 4 if imshape[0] * imshape[1] <= 150000 else 16
+print("Block size: ", BLOCK_SIZE)
+SEARCH_WINDOW_SIZE = 2 * BLOCK_SIZE
 
 fig, ((ax_ref, ax_input, ax_overlay), (ax_replaced, ax_residual, ax_reconstructed)) = plt.subplots(
     2, 3, figsize=(14, 9))
 fig.suptitle("Motion Prediction & Compensation", fontsize=16)
 
 ax_overlay.imshow(overlayImg)
-ax_overlay.set_title("Overlay Frames")
+ax_overlay.set_title("Overlay Frames with Highlighted Nonstatic Blocks")
 
 
 # MOTION ESTIMATION
@@ -84,10 +99,10 @@ def find_match(img, block, block_coord):
         for i in range(i_min, i_max, STEP_SIZE):
 
             # Check if out of bound of the image
-            if (i+BLOCK_SIZE > i_max):
+            if (i+BLOCK_SIZE >= i_max):
                 continue
             for j in range(j_min, j_max, STEP_SIZE):
-                if (j+BLOCK_SIZE > j_max):
+                if (j+BLOCK_SIZE >= j_max):
                     continue
 
                 if (DRAW_SEARCH_WINDOW_BLOCKS):
@@ -95,8 +110,8 @@ def find_match(img, block, block_coord):
                                                BLOCK_SIZE,  edgecolor='gray', fill=False, lw=LINE_WIDTH))
                 # Valid block within image bound
                 ref_block = image[i:i+BLOCK_SIZE, j:j+BLOCK_SIZE]
-                # print("Ref block size", ref_block.shape)
-
+                if (ref_block.shape[0] != ref_block.shape[1]):
+                    print("Ref block has invalid shape", ref_block.shape)
                 # Get sum difference between the 2 blocks
                 diff = np.sum(np.abs(ref_block - block))
 
@@ -123,18 +138,12 @@ def split_frame_into_mblocks(input_frame):
     block_idx = 0
     for i in range(0, imshape[0], BLOCK_SIZE):
         if (i+BLOCK_SIZE > imshape[0]):
-            continue
+            break
         for j in range(0, imshape[1], BLOCK_SIZE):
             if (j+BLOCK_SIZE > imshape[1]):
-                continue
-            block = input_frame[i:i+BLOCK_SIZE, j:j+BLOCK_SIZE]
+                break
 
-            # draw out bounding box for each block
-            if DRAW_MBLOCK_INDEX:
-                ax_input.add_patch(Rectangle((j, i), BLOCK_SIZE,
-                                             BLOCK_SIZE,  edgecolor='black', fill=False, lw=LINE_WIDTH))
-                ax_input.text(j, i + BLOCK_SIZE, block_idx,
-                              fontsize=3, color="white")
+            block = input_frame[i:i+BLOCK_SIZE, j:j+BLOCK_SIZE]
 
             # we keep all blocks
             blocks.append(block)
@@ -178,7 +187,7 @@ def process_motion_prediction(input_frame, ref_frame):
         if (not (motion_vector[0] == 0 and motion_vector[1] == 0)):
             ax_overlay.arrow(searchCoord[0] + BLOCK_SIZE/2, searchCoord[1] + BLOCK_SIZE/2,
                              motion_vector[0], motion_vector[1], head_width=5, edgecolor="yellow")
-        print("Finished processing block index:", block_i)
+        # print("Finished processing block index:", block_i)
 
     return [motion_vectors, block_coords]
 
@@ -187,22 +196,27 @@ def reconstruct_from_motion_vectors(motion_vectors, ref_frame, block_coords):
     # We reconstruct an image solely from the motion vectors and the reference frame
     # which we want to compare with the actual input frame to get the residual frame
     reconstruct_img = np.zeros(
-        (imshape[1], imshape[0], channels), ref_frame.dtype)
+        (imshape[0], imshape[1], channels), ref_frame.dtype)
     num_static = 0
     for block_i in range(len(block_coords)):
+        print("Reconstruct block", block_i)
         [j, i] = block_coords[block_i]
         v = motion_vectors[block_i]
+        sampled_block = np.zeros(
+            (BLOCK_SIZE, BLOCK_SIZE, channels), ref_frame.dtype)
         if (v[0] == 0 and v[1] == 0):
             # We find static blocks and directly sample from the reference frame
-            reconstruct_img[i:i+BLOCK_SIZE, j:j +
-                            BLOCK_SIZE] = ref_frame[i:i+BLOCK_SIZE, j:j+BLOCK_SIZE]
+            sampled_block = ref_frame[i:i+BLOCK_SIZE, j:j+BLOCK_SIZE]
             num_static += 1
         else:
             # For nonstatic blocks, we find the motion predicted block
             i_0 = i + v[1]
             j_0 = j + v[0]
-            predicted_block = ref_frame[i_0:i_0+BLOCK_SIZE, j_0:j_0+BLOCK_SIZE]
-            reconstruct_img[i:i+BLOCK_SIZE, j:j + BLOCK_SIZE] = predicted_block
+            sampled_block = ref_frame[i_0:i_0 +
+                                      BLOCK_SIZE, j_0:j_0+BLOCK_SIZE]
+        reconstruct_img[i:i+BLOCK_SIZE, j:j +
+                        BLOCK_SIZE] = sampled_block
+        print("Finished reconstructing block", block_i)
 
     ax_replaced.imshow(reconstruct_img)
     ax_replaced.set_title("Reconstructed From Motion Vectors")
