@@ -2,16 +2,21 @@ import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 import math
+from tqdm.auto import tqdm
 
-bgrimg = cv2.imread('../images/catstairs.png')
+blockw = 8
+blockh = 8
+blocksize = 8
+
+bgrimg = cv2.imread('../images/screm.png')
 fig = plt.figure()
 ax = fig.add_subplot(1,2,1)
 ax.set_title("Original Image")
-plt.imshow(cv2.cvtColor(bgrimg, cv2.COLOR_BGR2RGB))
+plt.imshow(cv2.cvtColor(bgrimg, cv2.COLOR_BGR2RGB), cmap='gray')
 plt.axis("off")
 #plt.show()
 imshape = bgrimg.shape
-bgrimg = cv2.resize(bgrimg, (8*imshape[1]//8, 8*imshape[0]//8)) #resize to closest multiple of 8 for convenience
+bgrimg = cv2.resize(bgrimg, (blockh*imshape[1]//blockh, blockw*imshape[0]//blockw)) #resize to closest multiple of block for convenience
 imshape = bgrimg.shape
 #plt.imshow(bgrimg)
 #plt.show()
@@ -22,8 +27,6 @@ Cr = np.array(Cr).astype(np.int16) - 128
 Cb = np.array(Cb).astype(np.int16) - 128
 channels = [Y,Cr,Cb]
 
-blocksize = 8
-
 def cuHelper(ind):
 	if ind == 0:
 		return 1/math.sqrt(2)
@@ -32,19 +35,20 @@ def cuHelper(ind):
 
 #reference: https://www.math.cuhk.edu.hk/~lmlui/dct.pdf
 def dct(inputBlock):
-	result = np.zeros((blocksize, blocksize))
-	for i in range(blocksize):
-		for j in range(blocksize):
+	result = np.zeros((blockh, blockw))
+	for i in range(blockh):
+		for j in range(blockw):
 			cosSum = 0
-			for k in range(blocksize):
-				for l in range(blocksize):
-					temp = inputBlock[k][l] * math.cos((2*k+1)*i*math.pi/(2*blocksize)) * math.cos((2*l+1)*j*math.pi/(2*blocksize))
+			for k in range(blockh):
+				for l in range(blockw):
+					temp = inputBlock[k][l] * math.cos((2*k+1)*i*math.pi/(2*blockh)) * math.cos((2*l+1)*j*math.pi/(2*blockw))
 					cosSum += temp
-			result[i][j] = (1/math.sqrt(2*blocksize)) * cuHelper(i) * cuHelper(j) * cosSum
+			result[i][j] = (4/(blockh*blockw)) * cuHelper(i) * cuHelper(j) * cosSum #or math.sqrt(2/blockh) * math.sqrt(2/blockw)
+			#(1/math.sqrt(2*blocksize)) * cuHelper(i) * cuHelper(j) * cosSum
 	return result
 
 def dctTest():
-	testMatrix = np.ones((blocksize,blocksize)) * 255
+	testMatrix = np.ones((blockh,blockw)) * 255
 	print("original matrix:")
 	print(testMatrix)
 	print("DCT Transform of matrix")
@@ -53,6 +57,18 @@ def dctTest():
 
 dctTest()
 
+def invdct(inputBlock):
+	result = np.zeros((blockh, blockw))
+	for i in range(blockh):
+		for j in range(blockw):
+			cosSum = 0
+			for k in range(blockh):
+				for l in range(blockw):
+					cosSum += cuHelper(l) * inputBlock[k][l] * math.cos((2*i+1)*k*math.pi/(2*blockh)) * math.cos((2*j+1)*l*math.pi/(2*blockw))
+			result[i][j] = cosSum
+	return result
+
+#8x8 matrix format
 def dctMatrix():
 	result = np.zeros((blocksize, blocksize))
 	for i in range(blocksize):
@@ -63,10 +79,11 @@ def dctMatrix():
 				result[i,j] = math.sqrt(2/blocksize) * math.cos((2*j+1)*i*math.pi/(2*blocksize))
 	return result
 
-dctmat = dctMatrix()
-print(dctmat)
+#dctmat = dctMatrix()
+#print(dctmat)
 
 #apply dct transform with matrix multiplication and return transformed image
+#cant use matrix on non square block sizes bc theyre not orthogonal :(
 def dct2(matrix):
 	dctmat = dctMatrix()
 	result = np.matmul(dctmat, matrix)
@@ -95,8 +112,9 @@ def dct2Test():
 	result = dct2(testMatrix)
 	print(result)
 
-dct2Test()
+#dct2Test()
 
+#the standard only comes in 8x8 i guess
 #jpeg standard quantization matrices for lum and chrom
 QY=np.array([[16,11,10,16,24,40,51,61],
              [12,12,14,19,26,48,60,55],
@@ -129,39 +147,44 @@ Q=[np.clip(np.round(QY*scale), 1, 255),
 
 
 def completeDCT(): #used to pass in image to process 1 channel
+	print("begin compression")
 	compressed = []
 	for channel in range(3):
 		image = channels[channel]
 		result = np.zeros(image.shape)
-		for i in range(0, imshape[0], blocksize):
-			for j in range(0,imshape[1], blocksize):
-				block = image[i:i+blocksize, j:j+blocksize]
-				d = dct2(block) #perform transform
-				d = np.round(np.divide(d, Q[channel])) #perform quantization
-				result[i:i+blocksize, j:j+blocksize] = d
+		for i in tqdm(range(0, imshape[0], blockh), leave=False):
+			for j in range(0,imshape[1], blockw):
+				block = image[i:i+blockh, j:j+blockw]
+				d = dct2(block)#dct(block) #perform transform
+				#d = np.round(np.divide(d, Q[channel])) #perform quantization
+				result[i:i+blockh, j:j+blockw] = d
 		#ax = fig.add_subplot(1,2,2)
 		#ax.set_title("Image as 8x8 DCT blocks")
 		#plt.imshow(result, cmap='gray', vmax = np.max(result)*0.01, vmin=0)
 		#plt.axis("off")
 		#plt.show()
 		compressed.append(result)
+	print("compression finished")
 	#decompression
+	print("begin decompression")
 	decompressed = []
 	for channel in range(3):
 		image = compressed[channel]
 		result = np.zeros(image.shape)
-		for i in range(0, imshape[0], blocksize):
-			for j in range(0,imshape[1], blocksize):
-				block = image[i:i+blocksize, j:j+blocksize]
-				d = np.multiply(block, Q[channel]) #perform de-quantization
-				d = idct2(d) #inverse dct
-				result[i:i+blocksize, j:j+blocksize] = d
+		for i in tqdm(range(0, imshape[0], blockh)):
+			for j in range(0,imshape[1], blockw):
+				block = image[i:i+blockh, j:j+blockw]
+				#d = np.multiply(block, Q[channel]) #perform de-quantization
+				d=idct2(block)#d = idct2(d)#invdct(d) #inverse dct
+				result[i:i+blockh, j:j+blockw] = d
 		decompressed.append(result)
+	print("decompression finished")
 	newYCrCb = np.dstack(decompressed)
 	print(newYCrCb.shape)
 	newBGR = cv2.cvtColor(np.float32(newYCrCb), cv2.COLOR_YCR_CB2BGR)
 	ax = fig.add_subplot(1,2,2)
 	ax.set_title("Compressed Image")
+	#plt.imshow(decompressed[2], cmap='gray')
 	plt.imshow(cv2.cvtColor(newBGR, cv2.COLOR_BGR2RGB))
 	plt.axis("off")
 	plt.show()
