@@ -16,7 +16,7 @@ plt.imshow(cv2.cvtColor(bgrimg, cv2.COLOR_BGR2RGB), cmap='gray')
 plt.axis("off")
 #plt.show()
 imshape = bgrimg.shape
-bgrimg = cv2.resize(bgrimg, (blockh*imshape[1]//blockh, blockw*imshape[0]//blockw)) #resize to closest multiple of block for convenience
+bgrimg = cv2.resize(bgrimg, (blockh*imshape[1]//blockw, blockw*imshape[0]//blockh)) #resize to closest multiple of block for convenience
 imshape = bgrimg.shape
 #plt.imshow(bgrimg)
 #plt.show()
