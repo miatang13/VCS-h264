@@ -9,7 +9,6 @@ DRAW_SEARCH_BLOCK = False
 
 # Tweak params
 BLOCK_SIZE = 16
-SEARCH_WINDOW_SIZE = 2
 FONT_SIZE = 5
 LINE_WIDTH = 0.5
 SIMILARITY_THRESHOLD = 255 * .1
@@ -18,11 +17,14 @@ SIMILARITY_THRESHOLD = 255 * .1
 img1 = cv2.imread('../../images/sequences/minor-jump/0.png')
 img2 = cv2.imread('../../images/sequences/minor-jump/1.png')
 overlayImg = cv2.imread("../../images/sequences/minor-jump/overlay.png")
-img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB)
-img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB)
+refImage = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB)
+inputImage = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB)
 overlayImg = cv2.cvtColor(overlayImg, cv2.COLOR_BGR2RGB)
-vheight, vwidth, channels = img1.shape
+vheight, vwidth, channels = refImage.shape
 imshape = img1.shape
+
+# If the image is too small, we want to cap the search window by some factor of the image dimension
+SEARCH_WINDOW_SIZE = round(min(2 * BLOCK_SIZE, min(vwidth, vheight) / 5))
 
 block_coords = []
 
@@ -70,7 +72,7 @@ def find_match(img, block, block_coord):
         best_match = 9999999999
 
         # Loop over all blocks in reference frame within the search window
-        dist_from_block = round(BLOCK_SIZE * SEARCH_WINDOW_SIZE)
+        dist_from_block = SEARCH_WINDOW_SIZE
         # Mins
         i_min = max(block_coord[1] - dist_from_block, 0)
         j_min = max(block_coord[0] - dist_from_block, 0)
@@ -187,12 +189,12 @@ def get_motion_vector(match_coord, search_coord):
 
 
 TEST_BLOCK_IDX = 298
-[blocks, _] = split_frame_into_mblocks(img1, TEST_BLOCK_IDX)
+[blocks, _] = split_frame_into_mblocks(inputImage, TEST_BLOCK_IDX)
 print("Num Blocks", len(blocks))
 for block_i in range(len(blocks)):
     searchCoord = block_coords[block_i]
     [best_coord, best_block] = find_match(
-        img2, blocks[block_i], searchCoord)
+        refImage, blocks[block_i], searchCoord)
     motion_vector = get_motion_vector(best_coord, searchCoord)
     if (not (motion_vector[0] == 0 and motion_vector[1] == 0)):
         # Only plot vectors when the block is not static
