@@ -77,13 +77,13 @@ class DCTCompressor:
         decompressed = []
         for channel in range(3):
             image = compressed[channel]
-            result = np.zeros(image.shape, 'uint8')
+            result = np.zeros(image.shape)
             for i in tqdm(range(0, imshape[0], self.blocksize)):
                 for j in range(0, imshape[1], self.blocksize):
                     block = image[i:i+self.blocksize, j:j+self.blocksize]
                     # perform de-quantization
                     d = np.multiply(block, self.Q[channel])
-                    d = self._idct2(block)
+                    d = self._idct2(d)
                     result[i:i+self.blocksize, j:j+self.blocksize] = d
             decompressed.append(result.astype(np.uint8)+128)
         print("decompression finished")
@@ -97,7 +97,7 @@ class DCTCompressor:
     # TESTING
     # used to pass in image to process 1 channel
     def _completeDCT(self, input_img):
-        imshape = input_img.shape
+        imshape = (self.blocksize*input_img.shape[0]//self.blocksize, self.blocksize*input_img.shape[1]//self.blocksize, 3)
         print("begin compression")
         compressed = self.compress(input_img)
         newBGR = self.decompress(compressed, imshape)
