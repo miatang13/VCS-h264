@@ -4,14 +4,13 @@ from decoder import Decoder
 
 ######################################################################
 # TESTS
-CORGI_PATH = '../videos/corgi_play_cut.mp4'
 CAT_PATH = "../videos/cat_crop.mp4"
 FEW_PATH = "../videos/cat_extreme_cut.mp4"
 TRAFFIC_PATH = "../videos/traffic_cut.mp4"
 
 ######################################################################
 # PARAMS
-VIDEO_INPUT = CAT_PATH
+VIDEO_INPUT = TRAFFIC_PATH
 FRAME_RATE = 25
 BLOCK_SIZE = 8
 ENCODING_PATTERN = ["I", "P", "P", "P"]  # ON BOOK: I, B, P, B, P, B, P
