@@ -8,6 +8,8 @@ import cv2
 SIMILARITY_THRESHOLD = 2000
 CHANNELS = 3
 
+WRITE_STATIC_BLOCK = True
+
 
 class MotionProcessor:
     def __init__(self, block_size, shape):
@@ -48,7 +50,7 @@ class MotionProcessor:
             v = motion_vectors[block_i]
             sampled_block = np.zeros(
                 (self.block_size, self.block_size, CHANNELS), ref_frame.dtype)
-            if (v[0] == 0 and v[1] == 0):
+            if (v[0] == 0 and v[1] == 0 and WRITE_STATIC_BLOCK):
                 # We find static blocks and directly sample from the reference frame
                 sampled_block = ref_frame[i:i +
                                           self.block_size, j:j+self.block_size]
@@ -62,16 +64,16 @@ class MotionProcessor:
             reconstruct_img[i:i+self.block_size, j:j +
                             self.block_size] = sampled_block
 
-        # print("There are", num_static, "static blocks out of",
-        #       len(block_coords), "blocks")
+        print("There are", num_static, "static blocks out of",
+              len(block_coords), "blocks")
         return reconstruct_img
 
     #################################################################
     # PRIVATE METHODS
 
     def _split_frame_into_mblocks(self, input_frame):
-        print("Splitting frame into mblocks with input of shape", input_frame.shape)
-        print("Self shape", self.shape)
+        # print("Splitting frame into mblocks with input of shape", input_frame.shape)
+        # print("Self shape", self.shape)
         blocks = []
         block_coords = []
 
@@ -92,7 +94,7 @@ class MotionProcessor:
                 block_idx += 1
                 block_coords.append([j, i])
 
-        print("Finished splitting frame into macro blocks")
+        # print("Finished splitting frame into macro blocks")
         return [blocks, block_coords]
 
     def _find_match(self, img, block, block_coord):

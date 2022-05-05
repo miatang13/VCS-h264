@@ -5,6 +5,8 @@ from DCTcompressor import DCTCompressor
 ######################################################################
 # DECODING
 
+WRITE_REF_FRAMES = True
+
 
 class Decoder:
     def __init__(self, encoded_frames, fps, shape, ref_frames, block_size, with_DCT):
@@ -30,7 +32,7 @@ class Decoder:
         num_ref_seen = 0
         while (cur_frame_idx < num_frames):
             cur_frame = self.encoded_frames[cur_frame_idx]
-            if (cur_frame.t == "I"):
+            if (cur_frame.t == "I" and WRITE_REF_FRAMES):
                 # we have reference frame, we simply write it
                 frame = self.ref_frames[num_ref_seen]
                 out.write(frame)
@@ -52,8 +54,6 @@ class Decoder:
         if (self.with_DCT):
             decompressed_residuals = self.DCTCompressor.decompress(
                 compressed=residuals, imshape=img.shape)
-            print("Reconstruct frame getting shapes:",
-                  decompressed_residuals.shape, img.shape)
             result = img + decompressed_residuals
             return result
         else:
