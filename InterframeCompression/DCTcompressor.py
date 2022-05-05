@@ -4,7 +4,7 @@ from tqdm.auto import tqdm
 import cv2
 import matplotlib.pyplot as plt
 
-TEST_COMPRESSOR = False
+TEST_COMPRESSOR = True
 QUANTIZE = True
 
 # jpeg standard quantization matrices for lum and chrom
@@ -66,10 +66,16 @@ class DCTCompressor:
             for i in tqdm(range(0, imshape[0], self.blocksize), leave=False):
                 for j in range(0, imshape[1], self.blocksize):
                     block = image[i: i+self.blocksize, j: j+self.blocksize]
-                    d = self._dct2(block)  # dct(block) #perform transform
-                    # perform quantization
-                    d = np.true_divide(d, self.Q[channel])
-                    result[i: i+self.blocksize, j: j+self.blocksize] = d
+
+                    # We don't quantize irregular blocks since our dct matrix is fixed sized
+                    if (i + self.blocksize > imshape[0] or j + self.blocksize > imshape[1]):
+                        result[i: i+self.blocksize,
+                               j: j+self.blocksize] = block
+                    else:
+                        d = self._dct2(block)  # dct(block) #perform transform
+                        # perform quantization
+                        d = np.round(np.divide(d, self.Q[channel]))
+                        result[i: i+self.blocksize, j: j+self.blocksize] = d
             compressed.append(result)
         return compressed
 
@@ -78,14 +84,20 @@ class DCTCompressor:
         decompressed = []
         for channel in range(3):
             image = compressed[channel]
-            result = np.zeros(image.shape, 'uint8')
+            result = np.zeros(image.shape)
             for i in tqdm(range(0, imshape[0], self.blocksize)):
                 for j in range(0, imshape[1], self.blocksize):
                     block = image[i: i+self.blocksize, j: j+self.blocksize]
-                    # perform de-quantization
-                    d = np.multiply(block, self.Q[channel])
-                    d = self._idct2(d)
-                    result[i: i+self.blocksize, j: j+self.blocksize] = d
+
+                    # We don't quantize irregular blocks since our dct matrix is fixed sized
+                    if (i + self.blocksize > imshape[0] or j + self.blocksize > imshape[1]):
+                        result[i: i+self.blocksize,
+                               j: j+self.blocksize] = block
+                    else:
+                        # perform de-quantization
+                        d = np.multiply(block, self.Q[channel])
+                        d = self._idct2(d)
+                        result[i: i+self.blocksize, j: j+self.blocksize] = d
             decompressed.append(result.astype(np.uint8)+128)
         print("decompression finished")
         newYCrCb = np.dstack(decompressed)
@@ -143,7 +155,7 @@ if (TEST_COMPRESSOR):
     blocksize = 8
 
     # Prepare plots
-    bgrimg = cv2.imread('../images/screm.png')
+    bgrimg = cv2.imread('../images/highcontrast.jpeg')
     fig = plt.figure()
     ax = fig.add_subplot(1, 2, 1)
     ax.set_title("Original Image")

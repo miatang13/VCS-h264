@@ -1,5 +1,3 @@
-from bz2 import compress
-from numpy import block
 from motion import MotionProcessor
 from frame import Frame
 import math
