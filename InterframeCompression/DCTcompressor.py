@@ -5,6 +5,7 @@ import cv2
 import matplotlib.pyplot as plt
 
 TEST_COMPRESSOR = False
+QUANTIZE = True
 
 # jpeg standard quantization matrices for lum and chrom
 QY = np.array([[16, 11, 10, 16, 24, 40, 51, 61],
@@ -64,11 +65,11 @@ class DCTCompressor:
             result = np.zeros(image.shape)
             for i in tqdm(range(0, imshape[0], self.blocksize), leave=False):
                 for j in range(0, imshape[1], self.blocksize):
-                    block = image[i:i+self.blocksize, j:j+self.blocksize]
+                    block = image[i: i+self.blocksize, j: j+self.blocksize]
                     d = self._dct2(block)  # dct(block) #perform transform
                     # perform quantization
-                    d = np.round(np.divide(d, self.Q[channel]))
-                    result[i:i+self.blocksize, j:j+self.blocksize] = d
+                    d = np.true_divide(d, self.Q[channel])
+                    result[i: i+self.blocksize, j: j+self.blocksize] = d
             compressed.append(result)
         return compressed
 
@@ -77,14 +78,14 @@ class DCTCompressor:
         decompressed = []
         for channel in range(3):
             image = compressed[channel]
-            result = np.zeros(image.shape)
+            result = np.zeros(image.shape, 'uint8')
             for i in tqdm(range(0, imshape[0], self.blocksize)):
                 for j in range(0, imshape[1], self.blocksize):
-                    block = image[i:i+self.blocksize, j:j+self.blocksize]
+                    block = image[i: i+self.blocksize, j: j+self.blocksize]
                     # perform de-quantization
                     d = np.multiply(block, self.Q[channel])
                     d = self._idct2(d)
-                    result[i:i+self.blocksize, j:j+self.blocksize] = d
+                    result[i: i+self.blocksize, j: j+self.blocksize] = d
             decompressed.append(result.astype(np.uint8)+128)
         print("decompression finished")
         newYCrCb = np.dstack(decompressed)
@@ -97,7 +98,7 @@ class DCTCompressor:
     # TESTING
     # used to pass in image to process 1 channel
     def _completeDCT(self, input_img):
-        imshape = (self.blocksize*input_img.shape[0]//self.blocksize, self.blocksize*input_img.shape[1]//self.blocksize, 3)
+        imshape = input_img.shape
         print("begin compression")
         compressed = self.compress(input_img)
         newBGR = self.decompress(compressed, imshape)
