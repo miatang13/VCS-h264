@@ -156,7 +156,7 @@ def completeDCT(): #used to pass in image to process 1 channel
 			for j in range(0,imshape[1], blockw):
 				block = image[i:i+blockh, j:j+blockw]
 				d = dct2(block)#dct(block) #perform transform
-				#d = np.round(np.divide(d, Q[channel])) #perform quantization
+				d = np.round(np.divide(d, Q[channel])) #perform quantization
 				result[i:i+blockh, j:j+blockw] = d
 		#ax = fig.add_subplot(1,2,2)
 		#ax.set_title("Image as 8x8 DCT blocks")
@@ -174,14 +174,14 @@ def completeDCT(): #used to pass in image to process 1 channel
 		for i in tqdm(range(0, imshape[0], blockh)):
 			for j in range(0,imshape[1], blockw):
 				block = image[i:i+blockh, j:j+blockw]
-				#d = np.multiply(block, Q[channel]) #perform de-quantization
-				d=idct2(block)#d = idct2(d)#invdct(d) #inverse dct
+				d = np.multiply(block, Q[channel]) #perform de-quantization
+				d = idct2(d)#invdct(d) #inverse dct
 				result[i:i+blockh, j:j+blockw] = d
-		decompressed.append(result)
+		decompressed.append(result.astype(np.uint8)+128)
 	print("decompression finished")
 	newYCrCb = np.dstack(decompressed)
 	print(newYCrCb.shape)
-	newBGR = cv2.cvtColor(np.float32(newYCrCb), cv2.COLOR_YCR_CB2BGR)
+	newBGR = cv2.cvtColor(newYCrCb, cv2.COLOR_YCR_CB2BGR).astype(np.uint8)
 	ax = fig.add_subplot(1,2,2)
 	ax.set_title("Compressed Image")
 	#plt.imshow(decompressed[2], cmap='gray')
