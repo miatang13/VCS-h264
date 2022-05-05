@@ -4,7 +4,7 @@ import cv2
 # MOTION ESTIMATION
 # Functions related to processing motion used by both encoder and decoder
 
-# Optimization Param
+# Optimization Params
 SIMILARITY_THRESHOLD = 2000
 CHANNELS = 3
 
@@ -23,7 +23,6 @@ class MotionProcessor:
         motion_vectors = []
         for block_i in range(len(blocks)):
             searchCoord = block_coords[block_i]
-            # print(searchCoord)
 
             # We find the matching block in reference frame
             [best_coord, best_block] = self._find_match(
