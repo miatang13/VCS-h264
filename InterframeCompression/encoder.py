@@ -1,6 +1,9 @@
+from bz2 import compress
+from numpy import block
 from motion import MotionProcessor
 from frame import Frame
 import math
+from DCTcompressor import DCTCompressor
 
 
 class Encoder:
@@ -12,6 +15,7 @@ class Encoder:
         self.ENCODING_PATTERN_LENGTH = len(pattern)
         self.MotionProcessor = MotionProcessor(
             block_size=block_size, shape=shape)
+        self.DCTCompressor = DCTCompressor(block_size=block_size)
 
     def encode_frame(self, input_frame, frame_num):
         print("Encoding new frame of index", frame_num)
@@ -56,6 +60,8 @@ class Encoder:
         # 3. Get residuals for better result
         residuals = self.MotionProcessor.get_residuals(input_frame=input,
                                                        reconstructed=reconstructed_img)
+        # 4. Compress residuals
+        compressed_residuals = self.DCTCompressor.compress(residuals)
         new_frame = Frame("P", motion_vectors=motion_vecs,
-                          residuals=residuals, block_coords=coords, index=frame_num, ref_idx=ref_idx)
+                          residuals=compressed_residuals, block_coords=coords, index=frame_num, ref_idx=ref_idx)
         return new_frame
