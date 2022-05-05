@@ -85,10 +85,10 @@ class DCTCompressor:
                     d = np.multiply(block, self.Q[channel])
                     d = self._idct2(block)
                     result[i:i+self.blocksize, j:j+self.blocksize] = d
-            decompressed.append(result)
+            decompressed.append(result.astype(np.uint8)+128)
         print("decompression finished")
         newYCrCb = np.dstack(decompressed)
-        newBGR = cv2.cvtColor(np.float32(newYCrCb), cv2.COLOR_YCR_CB2BGR)
+        newBGR = cv2.cvtColor(newYCrCb, cv2.COLOR_YCR_CB2BGR).astype(np.uint8)
         return newBGR
 
     #################################################################
