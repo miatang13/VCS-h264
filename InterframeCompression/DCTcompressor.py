@@ -4,7 +4,7 @@ from tqdm.auto import tqdm
 import cv2
 import matplotlib.pyplot as plt
 
-TEST_COMPRESSOR = True
+TEST_COMPRESSOR = False
 
 # jpeg standard quantization matrices for lum and chrom
 QY = np.array([[16, 11, 10, 16, 24, 40, 51, 61],
