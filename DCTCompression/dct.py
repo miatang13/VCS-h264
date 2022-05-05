@@ -18,7 +18,7 @@ plt.axis("off")
 imshape = bgrimg.shape
 # resize to closest multiple of block for convenience
 bgrimg = cv2.resize(
-    bgrimg, (blockw*imshape[1]//blockw, blockh*imshape[0]//blockh))
+    bgrimg, (blockw*(imshape[1]//blockw), blockh*(imshape[0]//blockh)))
 imshape = bgrimg.shape
 # plt.imshow(bgrimg)
 # plt.show()

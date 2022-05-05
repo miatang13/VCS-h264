@@ -49,7 +49,7 @@ class DCTCompressor:
         imshape = input_bgrimg.shape
         # resize to closest multiple of block for convenience
         bgrimg = cv2.resize(
-            input_bgrimg, (self.blocksize*imshape[1]//self.blocksize, self.blocksize*imshape[0]//self.blocksize))
+            input_bgrimg, (self.blocksize*(imshape[1]//self.blocksize), self.blocksize*(imshape[0]//self.blocksize)))
         imshape = bgrimg.shape
         YCrCbimg = cv2.cvtColor(bgrimg, cv2.COLOR_BGR2YCR_CB)
         Y, Cr, Cb = cv2.split(YCrCbimg)
