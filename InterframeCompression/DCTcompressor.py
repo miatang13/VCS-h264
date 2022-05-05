@@ -4,7 +4,7 @@ from tqdm.auto import tqdm
 import cv2
 import matplotlib.pyplot as plt
 
-TEST_COMPRESSOR = False
+TEST_COMPRESSOR = True
 
 # jpeg standard quantization matrices for lum and chrom
 QY = np.array([[16, 11, 10, 16, 24, 40, 51, 61],
@@ -98,46 +98,9 @@ class DCTCompressor:
     # used to pass in image to process 1 channel
     def _completeDCT(self, input_img):
         imshape = input_img.shape
-        # resize to closest multiple of block for convenience
-        bgrimg = cv2.resize(
-            input_img, (self.blocksize*imshape[1]//blocksize, blocksize*imshape[0]//blocksize))
-        imshape = bgrimg.shape
-        YCrCbimg = cv2.cvtColor(bgrimg, cv2.COLOR_BGR2YCR_CB)
-        Y, Cr, Cb = cv2.split(YCrCbimg)
-        Y = np.array(Y).astype(np.int16) - 128
-        Cr = np.array(Cr).astype(np.int16) - 128
-        Cb = np.array(Cb).astype(np.int16) - 128
-        channels = [Y, Cr, Cb]
         print("begin compression")
-        compressed = []
-        for channel in range(3):
-            image = channels[channel]
-            result = np.zeros(image.shape)
-            for i in tqdm(range(0, imshape[0], self.blocksize), leave=False):
-                for j in range(0, imshape[1], self.blocksize):
-                    block = image[i:i+self.blocksize, j:j+self.blocksize]
-                    d = self._dct2(block)  # dct(block) #perform transform
-                    # perform quantization
-                    d = np.round(np.divide(d, self.Q[channel]))
-                    result[i:i+self.blocksize, j:j+self.blocksize] = d
-            compressed.append(result)
-        print("begin decompression")
-        decompressed = []
-        for channel in range(3):
-            image = compressed[channel]
-            result = np.zeros(image.shape)
-            for i in tqdm(range(0, imshape[0], blocksize)):
-                for j in range(0, imshape[1], blocksize):
-                    block = image[i:i+blocksize, j:j+blocksize]
-                    # perform de-quantization
-                    d = np.multiply(block, self.Q[channel])
-                    d = self._idct2(block)
-                    result[i:i+blocksize, j:j+blocksize] = d
-            decompressed.append(result)
-        print("decompression finished")
-        newYCrCb = np.dstack(decompressed)
-        print(newYCrCb.shape)
-        newBGR = cv2.cvtColor(np.float32(newYCrCb), cv2.COLOR_YCR_CB2BGR)
+        compressed = self.compress(input_img)
+        newBGR = self.decompress(compressed, imshape)
         ax = fig.add_subplot(1, 2, 2)
         ax.set_title("Compressed Image")
         plt.imshow(cv2.cvtColor(newBGR, cv2.COLOR_BGR2RGB))
@@ -183,7 +146,7 @@ if (TEST_COMPRESSOR):
     fig = plt.figure()
     ax = fig.add_subplot(1, 2, 1)
     ax.set_title("Original Image")
-    plt.imshow(cv2.cvtColor(bgrimg, cv2.COLOR_BGR2RGB), cmap='gray')
+    plt.imshow(cv2.cvtColor(bgrimg, cv2.COLOR_BGR2RGB))
     plt.axis("off")
 
     # Construct compressor

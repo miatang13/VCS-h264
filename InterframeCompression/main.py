@@ -11,7 +11,7 @@ TRAFFIC_PATH = "../videos/traffic_cut.mp4"
 
 ######################################################################
 # PARAMS
-VIDEO_INPUT = FEW_PATH
+VIDEO_INPUT = TRAFFIC_PATH
 FRAME_RATE = 25
 BLOCK_SIZE = 8
 ENCODING_PATTERN = ["I", "P", "P", "P"]  # ON BOOK: I, B, P, B, P, B, P
@@ -25,8 +25,10 @@ vidshape = [height, width]
 
 ######################################################################
 # ENCODE VIDEO
+
+WITH_DCT = True
 h264_encoder = Encoder(pattern=ENCODING_PATTERN,
-                       shape=vidshape, block_size=BLOCK_SIZE)
+                       shape=vidshape, block_size=BLOCK_SIZE, with_DCT=WITH_DCT)
 
 # READ AND ENCODE EVERY FRAME
 frame_num = 0
@@ -45,7 +47,7 @@ print("Finished encoding all frames, will decocode and output video.")
 ######################################################################
 # DECODE VIDEO
 h264_decoder = Decoder(encoded_frames=h264_encoder.encoded_frames, fps=25.0, shape=vidshape,
-                       ref_frames=h264_encoder.ref_frames, block_size=BLOCK_SIZE)
+                       ref_frames=h264_encoder.ref_frames, block_size=BLOCK_SIZE, with_DCT=WITH_DCT)
 h264_decoder.reconstruct_video(with_residuals=True)
 
 ######################################################################

@@ -8,7 +8,7 @@ from DCTcompressor import DCTCompressor
 
 class Encoder:
 
-    def __init__(self, pattern, shape, block_size):
+    def __init__(self, pattern, shape, block_size, with_DCT):
         self.ref_frames = []
         self.encoded_frames = []
         self.pattern = pattern
@@ -16,6 +16,7 @@ class Encoder:
         self.MotionProcessor = MotionProcessor(
             block_size=block_size, shape=shape)
         self.DCTCompressor = DCTCompressor(block_size=block_size)
+        self.with_DCT = with_DCT
 
     def encode_frame(self, input_frame, frame_num):
         print("Encoding new frame of index", frame_num)
@@ -61,7 +62,9 @@ class Encoder:
         residuals = self.MotionProcessor.get_residuals(input_frame=input,
                                                        reconstructed=reconstructed_img)
         # 4. Compress residuals
-        compressed_residuals = self.DCTCompressor.compress(residuals)
+        res = residuals
+        if (self.with_DCT):
+            res = self.DCTCompressor.compress(residuals)
         new_frame = Frame("P", motion_vectors=motion_vecs,
-                          residuals=compressed_residuals, block_coords=coords, index=frame_num, ref_idx=ref_idx)
+                          residuals=res, block_coords=coords, index=frame_num, ref_idx=ref_idx)
         return new_frame
