@@ -154,7 +154,7 @@ QC = np.array([[17, 18, 24, 47, 99, 99, 99, 99],
                [99, 99, 99, 99, 99, 99, 99, 99],
                [99, 99, 99, 99, 99, 99, 99, 99]])
 
-QF = 50.0  # quality factor, must be between 1 and 99
+QF = 99.0  # quality factor, must be between 1 and 99
 if QF < 50 and QF > 1:
     scale = 50/QF
 elif QF < 100:
@@ -185,6 +185,10 @@ def completeDCT(): #used to pass in image to process 1 channel
 		#plt.show()
 		compressed.append(result)
 	print("compression finished")
+	print("sparsity:")
+	nonzeros = np.count_nonzero(compressed[0]) + np.count_nonzero(compressed[1]) + np.count_nonzero(compressed[2])
+	totalsize = float(compressed[0].size) + float(compressed[1].size) + float(compressed[2].size)
+	print(1.0 - (nonzeros/totalsize))
 	#decompression
 	print("begin decompression")
 	decompressed = []
