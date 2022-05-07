@@ -40,10 +40,11 @@ Q = [np.clip(np.round(QY*scale), 1, 255),
 
 class DCTCompressor:
 
-    def __init__(self, block_size):
+    def __init__(self, block_size, with_Q):
         self.blocksize = block_size
         self.compressed = []
         self.Q = Q
+        self.with_Q = with_Q
 
     # These are the same as the completeDCT steps, just broken down into 2 functions
     def compress(self, input_bgrimg):
@@ -67,8 +68,9 @@ class DCTCompressor:
                 for j in range(0, imshape[1], self.blocksize):
                     block = image[i: i+self.blocksize, j: j+self.blocksize]
                     d = self._dct2(block)  # dct(block) #perform transform
-                    # perform quantization
-                    d = np.true_divide(d, self.Q[channel])
+                    if (self.with_Q ): 
+                        # perform quantization
+                        d = np.true_divide(d, self.Q[channel])
                     result[i: i+self.blocksize, j: j+self.blocksize] = d
             compressed.append(result)
         return compressed
@@ -82,9 +84,13 @@ class DCTCompressor:
             for i in tqdm(range(0, imshape[0], self.blocksize)):
                 for j in range(0, imshape[1], self.blocksize):
                     block = image[i: i+self.blocksize, j: j+self.blocksize]
-                    # perform de-quantization
-                    d = np.multiply(block, self.Q[channel])
-                    d = self._idct2(d)
+                    d = block
+                    if self.with_Q: 
+                        # perform de-quantization
+                        d = np.multiply(block, self.Q[channel])
+                        d = self._idct2(d)
+                    else:
+                        d = self._idct2(block)
                     result[i: i+self.blocksize, j: j+self.blocksize] = d
             decompressed.append(result.astype(np.uint8)+128)
         print("decompression finished")

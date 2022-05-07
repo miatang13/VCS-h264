@@ -8,14 +8,14 @@ from DCTcompressor import DCTCompressor
 
 class Encoder:
 
-    def __init__(self, pattern, shape, block_size, with_DCT):
+    def __init__(self, pattern, shape, block_size, with_DCT, with_Q):
         self.ref_frames = []
         self.encoded_frames = []
         self.pattern = pattern
         self.ENCODING_PATTERN_LENGTH = len(pattern)
         self.MotionProcessor = MotionProcessor(
             block_size=block_size, shape=shape)
-        self.DCTCompressor = DCTCompressor(block_size=block_size)
+        self.DCTCompressor = DCTCompressor(block_size=block_size, with_Q = with_Q)
         self.with_DCT = with_DCT
 
     def encode_frame(self, input_frame, frame_num):

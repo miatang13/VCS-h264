@@ -68,7 +68,7 @@ class MotionProcessor:
                             self.block_size] = sampled_block
             self.num_total_blocks += 1
 
-        self.num_static_blocks = num_static
+        self.num_static_blocks += num_static
 
         print("There are", num_static, "static blocks out of",
               len(block_coords), "blocks")

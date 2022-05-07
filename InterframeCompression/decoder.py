@@ -9,7 +9,7 @@ WRITE_REF_FRAMES = True
 
 
 class Decoder:
-    def __init__(self, encoded_frames, fps, shape, ref_frames, block_size, with_DCT):
+    def __init__(self, encoded_frames, fps, shape, ref_frames, block_size, with_DCT, with_Q):
         self.encoded_frames = encoded_frames
         self.fps = fps
         self.shape = shape
@@ -17,7 +17,7 @@ class Decoder:
         self.ref_frames = ref_frames
         self.MotionProcessor = MotionProcessor(
             block_size=block_size, shape=shape)
-        self.DCTCompressor = DCTCompressor(block_size=block_size)
+        self.DCTCompressor = DCTCompressor(block_size=block_size, with_Q = with_Q)
         self.with_DCT = with_DCT
 
     def reconstruct_video(self, with_residuals):
