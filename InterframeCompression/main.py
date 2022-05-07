@@ -7,10 +7,11 @@ from decoder import Decoder
 CAT_PATH = "../videos/cat_crop.mp4"
 FEW_PATH = "../videos/cat_extreme_cut.mp4"
 TRAFFIC_PATH = "../videos/traffic_cut.mp4"
+CORGI_WATER_PATH = "../videos/corgi_underwater_cut.mp4"
 
 ######################################################################
 # PARAMS
-VIDEO_INPUT = TRAFFIC_PATH
+VIDEO_INPUT = CAT_PATH
 FRAME_RATE = 25
 BLOCK_SIZE = 8
 ENCODING_PATTERN = ["I", "P", "P", "P"]  # ON BOOK: I, B, P, B, P, B, P
@@ -54,4 +55,5 @@ h264_decoder.reconstruct_video(with_residuals=WITH_RESIDUAL)
 print("Releasing everything. Job finished. ")
 cap.release()
 cv2.destroyAllWindows()
+h264_decoder.MotionProcessor.print_performance()
 print("Finished!")

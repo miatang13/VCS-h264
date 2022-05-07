@@ -16,6 +16,9 @@ class MotionProcessor:
         self.block_size = block_size
         self.shape = shape
         self.search_window_size = block_size * 2
+        # Performance Evaluation
+        self.num_total_blocks = 0
+        self.num_static_blocks = 0
 
     def process_motion_prediction(self, input_frame, ref_frame):
         # Break input frame into blocks
@@ -63,17 +66,22 @@ class MotionProcessor:
                                           self.block_size, j_0:j_0+self.block_size]
             reconstruct_img[i:i+self.block_size, j:j +
                             self.block_size] = sampled_block
+            self.num_total_blocks += 1
+
+        self.num_static_blocks = num_static
 
         print("There are", num_static, "static blocks out of",
               len(block_coords), "blocks")
         return reconstruct_img
 
+    def print_performance(self):
+        print("=======================PERF======================")
+        print("Total blocks:", self.num_total_blocks)
+        print("Total static blocks:", self.num_static_blocks)
     #################################################################
     # PRIVATE METHODS
 
     def _split_frame_into_mblocks(self, input_frame):
-        # print("Splitting frame into mblocks with input of shape", input_frame.shape)
-        # print("Self shape", self.shape)
         blocks = []
         block_coords = []
 
